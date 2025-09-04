@@ -48,4 +48,4 @@ jobs:
       # 5. Push the commit back to the same branch
       - name: Push changes
         run: |
-          git push origin HEAD:refs/heads/$(git rev-parse --abbrev-ref HEAD)
+          git push origin HEAD:${{ github.head_ref || github.ref_name }}
