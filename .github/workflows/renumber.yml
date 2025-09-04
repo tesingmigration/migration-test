@@ -4,8 +4,6 @@ on:
   merge_group:
     branches:
       - main
-    paths:
-      - 'controlp/internal/cookiedb/migrations_postgres/**'
 
 permissions:
   contents: write
