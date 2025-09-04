@@ -48,14 +48,4 @@ jobs:
       # 5. Push the commit back to the same branch
       - name: Push changes
         run: |
-           run: |
-             if [ -n "${{ github.head_ref }}" ]; then
-               # For pull requests
-               git push origin HEAD:${{ github.head_ref }}
-             elif [ -n "${{ github.ref_name }}" ]; then
-               # For direct pushes to branches
-               git push origin HEAD:${{ github.ref_name }}
-             else
-               # For merge queue (merge_group)
-               git push origin HEAD:${{ github.event.merge_group.head_ref }}
-             fi
+          git push origin HEAD:refs/heads/$(git rev-parse --abbrev-ref HEAD)
