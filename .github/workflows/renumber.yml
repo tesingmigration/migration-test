@@ -1,6 +1,9 @@
 name: Renumber Migration and Push
 
 on:
+  pull_request:
+    paths:
+      - 'controlp/internal/cookiedb/migrations_postgres/**'
   merge_group:
     paths:
       - 'controlp/internal/cookiedb/migrations_postgres/**'
