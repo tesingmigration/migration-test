@@ -35,7 +35,7 @@ jobs:
         run: |
           git add controlp/internal/cookiedb/migrations_postgres/
           if ! git diff --cached --quiet; then
-            git commit -m "Renumber newly created migration file to maintain sequence"
+            git commit -m "created migration file to maintain sequence"
           else
             echo "No renames detected"
           fi
