@@ -42,6 +42,5 @@ jobs:
 
       # 5. Push the commit back to the same branch
       - name: Push changes
-        if: github.event_name != 'merge_group'
         run: |
           git push origin HEAD:${{ github.head_ref || github.ref_name }}
