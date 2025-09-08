@@ -5,24 +5,27 @@ MIGRATIONS_DIR="migrations"
 
 echo "🔍 Pre-commit: Checking staged migration file names..."
 
-staged_files=$(git diff --cached --name-only | grep "^$MIGRATIONS_DIR/" || true)
+# Get all staged migration files (adds, modifies, deletes, renames)
+staged_files=$(git diff --cached --name-status | grep -P "^[AMR]\t$MIGRATIONS_DIR/" || true)
 
 if [[ -z "$staged_files" ]]; then
-  echo "✅ No migration files staged"
+  echo "✅ No migration files staged for add/modify/rename"
   exit 0
 fi
 
 file_count=$(echo "$staged_files" | wc -l | tr -d ' ')
 
+# Rule: if more than one file is added/modified/renamed,
+#       all must have numeric prefixes
 if [[ "$file_count" -gt 1 ]]; then
-  for file in $staged_files; do
+  while IFS=$'\t' read -r status file; do
     basename=$(basename "$file")
-    if [[ ! "$basename" =~ ^[0-9]+_.*\.sql$ ]]; then
-      echo "❌ Multiple migration files detected and $basename has no numeric prefix."
-      echo "👉 Please add prefixes before committing."
+    if [[ ! "$basename" =~ ^[0-9]+_.* ]]; then
+      echo "❌ Multiple migration files staged and $basename has no numeric prefix."
+      echo "👉 Please ensure all migration files have numeric prefixes."
       exit 1
     fi
-  done
+  done <<< "$staged_files"
 fi
 
 echo "✅ Pre-commit check passed"

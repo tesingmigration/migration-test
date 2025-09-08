@@ -26,6 +26,33 @@ jobs:
         run: |
           git rebase origin/main || (echo "❌ Rebase failed. Please rebase manually." && exit 1)
 
+      - name: Detect added/modified migrations
+        id: detect
+        run: |
+          files=$(git diff --name-status origin/main...HEAD | grep -P "^[AMR]\tmigrations/" | cut -f2 || true)
+          echo "files=$files" >> $GITHUB_OUTPUT
+          echo "count=$(echo "$files" | grep -c . || echo 0)" >> $GITHUB_OUTPUT
+
+      - name: Validate migration prefixes
+        run: |
+          files="${{ steps.detect.outputs.files }}"
+          count="${{ steps.detect.outputs.count }}"
+
+          if [[ "$count" -eq 0 ]]; then
+            echo "✅ No migrations added/modified"
+            exit 0
+          fi
+
+          if [[ "$count" -gt 1 ]]; then
+            for f in $files; do
+              base=$(basename "$f")
+              if [[ ! "$base" =~ ^[0-9]+_.* ]]; then
+                echo "❌ Multiple migration files staged and $base has no numeric prefix."
+                exit 1
+              fi
+            done
+          fi
+
       - name: Run migration renumbering
         run: bash scripts/renumber_migrations.sh
 
@@ -38,5 +65,5 @@ jobs:
             git push origin HEAD:${{ github.head_ref }}
           fi
 
-      - name: Validate migrations
+      - name: Validate duplicates
         run: bash scripts/check_no_duplicate_migrations.sh

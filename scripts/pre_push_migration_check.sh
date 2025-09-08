@@ -5,10 +5,11 @@ MIGRATIONS_DIR="migrations"
 
 echo "🔍 Pre-push: Validating migrations..."
 
-staged_files=$(git diff --cached --name-only | grep "^$MIGRATIONS_DIR/" || true)
+# Get staged migration files, ignoring deletions
+staged_files=$(git diff --cached --name-status | grep -P "^[AMR]\t$MIGRATIONS_DIR/" | cut -f2 || true)
 
 if [[ -z "$staged_files" ]]; then
-  echo "✅ No migration files staged"
+  echo "✅ No added/modified migration files staged"
   exit 0
 fi
 
@@ -17,17 +18,18 @@ file_count=$(echo "$staged_files" | wc -l | tr -d ' ')
 if [[ "$file_count" -gt 1 ]]; then
   for file in $staged_files; do
     basename=$(basename "$file")
-    if [[ ! "$basename" =~ ^[0-9]+_.*\.sql$ ]]; then
-      echo "❌ Multiple migration files detected and $basename has no numeric prefix."
+    if [[ ! "$basename" =~ ^[0-9]+_.* ]]; then
+      echo "❌ Multiple migration files staged and $basename has no numeric prefix."
+      echo "👉 Please ensure all migration files have numeric prefixes."
       exit 1
     fi
   done
 fi
 
-# Renumber migrations
+# Run renumbering (handles single unprefixed too)
 bash scripts/renumber_migrations.sh
 
-# Commit if changes were made
+# If renumbering changed things, commit the fix
 if [[ -n "$(git status --porcelain $MIGRATIONS_DIR)" ]]; then
   echo "♻️ Renumbering adjusted migration filenames. Adding changes..."
   git add "$MIGRATIONS_DIR"
@@ -36,7 +38,7 @@ if [[ -n "$(git status --porcelain $MIGRATIONS_DIR)" ]]; then
   exit 1
 fi
 
-# Final validation
+# Final validation (duplicate check, etc.)
 bash scripts/check_no_duplicate_migrations.sh
 
 echo "✅ Pre-push migration validation passed"
