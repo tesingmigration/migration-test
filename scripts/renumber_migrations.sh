@@ -3,45 +3,37 @@ set -euo pipefail
 
 MIGRATIONS_DIR="migrations"
 
-echo "♻️ Renumbering migration files in $MIGRATIONS_DIR..."
+echo "🔍 Renumbering migration files (resolving duplicates)..."
 
-# Collect all migration files (prefix, prefixless, tmp_)
-files=($(ls "$MIGRATIONS_DIR" | grep -E '(^[0-9]+_.*\.sql$|^tmp_.*\.sql$|^[^.].*\.sql$)' | sort))
-counter=1
-changed=0
+# Collect all migration files, excluding deletions
+files=$(git ls-files -- "$MIGRATIONS_DIR" | sort)
 
-for file in "${files[@]}"; do
-  basename=$(basename "$file")
+if [[ -z "$files" ]]; then
+  echo "✅ No migration files found"
+  exit 0
+fi
 
-  # Case 1: Properly prefixed (0001_name.sql)
-  if [[ "$basename" =~ ^[0-9]+_(.*)\.sql$ ]]; then
-    suffix="${BASH_REMATCH[1]}"
+# Assign fresh sequential numbers
+i=1
+for f in $files; do
+  dirname=$(dirname "$f")
+  base=$(basename "$f")
 
-  # Case 2: tmp_*name.sql (inserted by hooks/CI)
-  elif [[ "$basename" =~ ^tmp_(.*)\.sql$ ]]; then
-    suffix="${BASH_REMATCH[1]}"
+  # Strip prefix if it exists
+  name_without_prefix=$(echo "$base" | sed -E 's/^[0-9]+_//')
 
-  # Case 3: Prefixless but valid SQL file (e.g. add_users.sql)
-  elif [[ "$basename" =~ ^(.*)\.sql$ ]]; then
-    suffix="${BASH_REMATCH[1]}"
+  # New number padded to 4 digits
+  new_prefix=$(printf "%04d" $i)
+  new_name="${new_prefix}_${name_without_prefix}"
 
-  else
-    echo "⚠️ Skipping unexpected file format: $basename"
-    continue
+  new_path="$dirname/$new_name"
+
+  if [[ "$f" != "$new_path" ]]; then
+    echo "♻️ Renaming $f → $new_path"
+    git mv "$f" "$new_path"
   fi
 
-  expected=$(printf "%04d" "$counter")_"$suffix".sql
-  if [[ "$basename" != "$expected" ]]; then
-    echo "Renaming $basename → $expected"
-    git mv "$MIGRATIONS_DIR/$basename" "$MIGRATIONS_DIR/$expected"
-    changed=1
-  fi
-
-  counter=$((counter + 1))
+  i=$((i + 1))
 done
 
-if [[ "$changed" -eq 0 ]]; then
-  echo "✅ No renumbering needed"
-else
-  echo "✅ Renumbering complete"
-fi
+echo "✅ Renumbering complete"

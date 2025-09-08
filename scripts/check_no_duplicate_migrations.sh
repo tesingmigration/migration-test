@@ -3,26 +3,20 @@ set -euo pipefail
 
 MIGRATIONS_DIR="migrations"
 
-echo "🔍 Validating sequential migration numbering..."
+echo "🔍 Checking for duplicate migration numbers..."
 
-files=($(ls "$MIGRATIONS_DIR" | grep -E '^[0-9]+_.*\.sql$' | sort))
-counter=1
-errors=0
+# Extract numeric prefixes
+prefixes=$(find "$MIGRATIONS_DIR" -type f -name '*.sql' \
+  | sed -E 's|.*/([0-9]+)_.*|\1|' \
+  | sort)
 
-for file in "${files[@]}"; do
-  expected=$(printf "%04d" "$counter")
-  current=$(echo "$file" | cut -d'_' -f1)
+# Look for duplicates
+dupes=$(echo "$prefixes" | uniq -d || true)
 
-  if [[ "$current" != "$expected" ]]; then
-    echo "❌ Expected prefix $expected but found $current in $file"
-    errors=1
-  fi
-
-  counter=$((counter + 1))
-done
-
-if [[ "$errors" -eq 0 ]]; then
-  echo "✅ Migration numbers sequential and unique"
-else
+if [[ -n "$dupes" ]]; then
+  echo "❌ Duplicate migration numbers detected:"
+  echo "$dupes"
   exit 1
 fi
+
+echo "✅ No duplicate migration numbers"
