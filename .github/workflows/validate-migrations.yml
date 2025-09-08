@@ -1,0 +1,42 @@
+name: Validate Migrations
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+      - name: Fetch main branch
+        run: git fetch origin main
+
+      - name: Rebase onto main
+        run: |
+          git rebase origin/main || (echo "❌ Rebase failed. Please rebase manually." && exit 1)
+
+      - name: Run migration renumbering
+        run: bash scripts/renumber_migrations.sh
+
+      - name: Commit renumbered migrations if needed
+        run: |
+          if [[ -n "$(git status --porcelain migrations)" ]]; then
+            echo "♻️ Committing auto-renumbered migrations..."
+            git add migrations
+            git commit -m "chore: auto-renumber migrations [ci]"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
+
+      - name: Validate migrations
+        run: bash scripts/check_no_duplicate_migrations.sh
